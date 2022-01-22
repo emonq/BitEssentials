@@ -1,4 +1,3 @@
-import requests
 import random
 import base64
 import time
@@ -6,6 +5,8 @@ import json
 import pickle
 import os
 import cgi
+import re
+import requests
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from bs4 import BeautifulSoup
@@ -34,16 +35,14 @@ class BitInfoError(Exception):
 
 
 class Bit:
-    """
-    北理工统一身份认证
-    """
     
     def __init__(self, username=None, password=None):
         self.department = ''
         self.name = ''
         self.__session = requests.session()
-        self.__username = username
+        self.username = username
         self.__password = password
+        self.scores = {}
     
     def set_info(self, username, password):
         """
@@ -52,7 +51,7 @@ class Bit:
         :param str password: 密码
         :return: 无
         """
-        self.__username = username
+        self.username = username
         self.__password = password
     
     def check_account_status(self):
@@ -61,17 +60,54 @@ class Bit:
         :return: 账号是否正常
         """
         result = self.__session.get('https://login.bit.edu.cn/authserver/checkNeedCaptcha.htl',
-                                    params={'username': self.__username})
+                                    params={'username': self.username})
         return not json.loads(result.text)['isNeed']
     
     def check_login_status(self):
         """
-        检查登录状态，未登录返回False
+        检查统一身份认证登录状态，未登录返回False
         :return: 是否已经登录
         """
         result = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/xskcb/cxxsjbxx.do',
                                      allow_redirects=False)
         return result.status_code == 200
+    
+    def check_webvpn_login(self):
+        """
+        检查webvpn登录状态，未登录返回False
+        :return: 是否已经登录
+        """
+        result = self.__session.get(
+            'https://webvpn.bit.edu.cn/http/77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/jsxsd/framework/main.jsp',
+            allow_redirects=False)
+        return result.status_code == 200
+    
+    def login_to_url(self, login_url):
+        if not self.check_account_status():
+            raise BitInfoError("账号异常")
+        result = self.__session.get(login_url)
+        login_url = result.url
+        page = BeautifulSoup(result.text, "html.parser")
+        if page.find(id="execution") is None:
+            print(f"{login_url} 已经登录")
+            return
+        param_execution = page.find(id="execution")['value']
+        password_salt = page.find(id="pwdEncryptSalt")['value']
+        param_password = encrypt_password(self.__password, password_salt)
+        data = {
+            'username': self.username,
+            'password': param_password,
+            'captcha': '',
+            'rememberMe': 'true',
+            '_eventId': 'submit',
+            'cllt': 'userNameLogin',
+            'dllt': 'generalLogin',
+            'lt': '',
+            'execution': param_execution
+        }
+        result = self.__session.post(login_url, data)
+        if result.status_code == 401:
+            raise BitInfoError("密码错误")
     
     def login(self):
         """
@@ -79,34 +115,26 @@ class Bit:
         :return: 无
         :rtype: None
         """
-        if self.__username is None or self.__password is None:
+        if self.username is None or self.__password is None:
             raise BitInfoError("账号或密码不能为空")
         if self.check_login_status():
             return
-        if self.check_account_status():
-            result = self.__session.get('https://login.bit.edu.cn/authserver/login')
-            page = BeautifulSoup(result.text, "html.parser")
-            param_execution = page.find(id="execution")['value']
-            password_salt = page.find(id="pwdEncryptSalt")['value']
-            param_password = encrypt_password(self.__password, password_salt)
-            data = {
-                'username': self.__username,
-                'password': param_password,
-                'captcha': '',
-                'rememberMe': 'true',
-                '_eventId': 'submit',
-                'cllt': 'userNameLogin',
-                'dllt': 'generalLogin',
-                'lt': '',
-                'execution': param_execution
-            }
-            result = self.__session.post('https://login.bit.edu.cn/authserver/login', data)
-            if result.status_code == 401:
-                raise BitInfoError("密码错误")
-            self.__session.get('http://jxzxehall.bit.edu.cn/login?service=http://jxzxehall.bit.edu.cn/new/index.html')
-            self.__session.get('http://jxzxehall.bit.edu.cn/appShow?appId=5959167891382285')
-        else:
-            raise BitInfoError("账号异常")
+        self.login_to_url('https://login.bit.edu.cn/authserver/login')
+        self.__session.get('http://jxzxehall.bit.edu.cn/login?service=http://jxzxehall.bit.edu.cn/new/index.html')
+        self.__session.get('http://jxzxehall.bit.edu.cn/appShow?appId=5959167891382285')
+        self.webvpn_login()
+    
+    def webvpn_login(self):
+        """
+        登录webvpn
+        :return: 无
+        :rtype: None
+        """
+        self.__session.cookies.set('show_vpn', '0', path='webvpn.bit.edu.cn')
+        self.__session.cookies.set('refresh', '1', path='webvpn.bit.edu.cn')
+        self.login_to_url('https://webvpn.bit.edu.cn/login?cas_login=true')
+        self.__session.get(
+            'https://webvpn.bit.edu.cn/http/77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/jsxsd/kscj/cjcx_list')
     
     def serialize(self):
         """
@@ -197,3 +225,54 @@ class Bit:
                     self.download_file(i.parent['href'], path, override)
         for i in bs.findAll(class_='section-title'):
             self.download_lexue_page_files(i.a['href'], os.path.join(path, i.a.text))
+    
+    def get_scores_update(self):
+        """
+        从webvpn爬取新成绩，返回更新的成绩项
+        字典项定义：
+        课程号: {
+            'term': 学期，如'2019-2020-1',
+            'name': 课程名,
+            'credit': 学分,
+            'score': 分数,
+            'average': 平均分,
+            'max': 最高分,
+            'class_rank': 班级排名,
+            'majority_rank': 专业排名,
+            'all_rank': 所有学生排名
+            }
+        :return: 包含成绩相关信息的字典
+        :rtype: dict
+        """
+        if not self.check_webvpn_login():
+            self.webvpn_login()
+        url = "https://webvpn.bit.edu.cn/http/77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/jsxsd/kscj/cjcx_list"
+        response = self.__session.get(url)
+        page = BeautifulSoup(response.text, 'html.parser')
+        scores = page.find_all('tr')[2:]
+        updates = {}
+        for i in scores:
+            columns = i.find_all('td')
+            if columns[2].text in self.scores:  # 如果scores中已经存在该项目则跳过
+                continue
+            data = {
+                'term': columns[1].text,
+                'name': columns[3].text,
+                'credit': float(columns[6].text),
+                'score': int(re.search(r'zcj=(\d+)', columns[-1].a['onclick']).group(1))}
+            response = self.__session.get(
+                'https://webvpn.bit.edu.cn/http/77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/jsxsd/kscj/cjfx',
+                params={'xs0101id': self.username,
+                        'xnxq01id': columns[1].text,
+                        'kch': columns[2].text
+                        })
+            bs = BeautifulSoup(response.text, 'html.parser')
+            analyse = bs.find_all('td')
+            data['average'] = analyse[4].text.split('：')[1]
+            data['max'] = int(analyse[5].text.split('：')[1])
+            data['class_rank'] = int(analyse[8].text.split('：')[1].strip('%')) / 100
+            data['majority_rank'] = int(analyse[9].text.split('：')[1].strip('%')) / 100
+            data['all_rank'] = int(analyse[10].text.split('：')[1].strip('%')) / 100
+            self.scores[columns[2].text] = data
+            updates[columns[2].text] = data
+        return updates
