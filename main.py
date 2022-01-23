@@ -150,7 +150,12 @@ def getscores_handler(update: Update, context: CallbackContext):
                 if len(context.args) > 1 or context.args[0] == 'help':
                     msg = "使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩"
                 else:
-                    scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == context.args[0]}
+                    term = context.args[0]
+                    years = re.findall(r'\d\d\d\d', term)
+                    if int(years[1]) - int(years[0]) != 1:
+                        context.bot.send_message(chat_id=chat_id, text="学期格式有误")
+                        return
+                    scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
                     msg += get_scores_message(scores)
             for x in range(0, len(msg), 4096):
                 context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
@@ -181,6 +186,10 @@ def getclasses_handler(update: Update, context: CallbackContext):
                     context.bot.send_message(chat_id=chat_id, text="使用方法：/getclasses [ 学期，如 2019-2020-1 ] 默认查询当前学期")
                     return
                 term = context.args[0]
+                years = re.findall(r'\d\d\d\d', term)
+                if int(years[1]) - int(years[0]) != 1:
+                    context.bot.send_message(chat_id=chat_id, text="学期格式有误")
+                    return
             context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
             res = bit.get_term_classes_ics(term)
             db.save_obj(bit.username, bit.serialize(), chat_id)
@@ -214,6 +223,10 @@ def getexams_handler(update: Update, context: CallbackContext):
                     context.bot.send_message(chat_id=chat_id, text="使用方法：/getexams [ 学期，如 2019-2020-1 ] 默认查询当前学期")
                     return
                 term = context.args[0]
+                years = re.findall(r'\d\d\d\d', term)
+                if int(years[1]) - int(years[0]) != 1:
+                    context.bot.send_message(chat_id=chat_id, text="学期格式有误")
+                    return
             context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
             res = bit.get_exams(term)
             if len(res) == 0:
@@ -259,6 +272,10 @@ def getaverage_handler(update: Update, context: CallbackContext):
                 term = bit.get_current_term()
             else:
                 term = context.args[0]
+                years = re.findall(r'\d\d\d\d', term)
+                if int(years[1]) - int(years[0]) != 1:
+                    context.bot.send_message(chat_id=chat_id, text="学期格式有误")
+                    return
             scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
             total = 0
             total_credit = 0
