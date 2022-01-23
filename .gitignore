@@ -1,6 +1,5 @@
 *.sqlite
 __pycache__/
 .idea/
-/main.py
 /downloads
 /config.json
