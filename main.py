@@ -65,7 +65,8 @@ def tos_handler(update: Update, context: CallbackContext):
 def refresh_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     msg = get_score_update_of_user(chat_id)
-    context.bot.send_message(chat_id=chat_id, text=msg)
+    for x in range(0, len(msg), 4096):
+        context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
 
 
 def link_handler(update: Update, context: CallbackContext):
@@ -151,13 +152,6 @@ def run():
     dispatcher.add_handler(CommandHandler('getscores', getscores_handler))
     updater.start_polling()
     updater.idle()
-
-
-def test():
-    bit = pickle.loads(db.get_obj('158820070'))
-    print(bit.scores)
-    updates = bit.get_scores_update()
-    print(updates)
 
 
 if __name__ == '__main__':

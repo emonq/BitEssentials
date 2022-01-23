@@ -44,6 +44,7 @@ class Bit:
         self.username = username
         self.__password = password
         self.scores = {}
+        self.currentTerm = ''
     
     def set_info(self, username, password):
         """
@@ -296,3 +297,10 @@ class Bit:
             updates[key] = data
         logging.debug(self.scores)
         return updates
+    
+    def get_current_term(self):
+        if not self.check_login_status():
+            self.login()
+        response = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/jshkcb/dqxnxq.do')
+        self.currentTerm = json.loads(response.text)['datas']['dqxnxq']['rows'][0]['DM']
+        return self.currentTerm
