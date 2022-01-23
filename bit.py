@@ -320,7 +320,7 @@ class Bit:
         logging.debug(self.scores)
         return updates
     
-    def __get_current_term(self):
+    def get_current_term(self):
         """
         获取当前学期并保存
         :return: 当前学期，如2019-2020-1
@@ -378,7 +378,7 @@ class Bit:
         """
         if not self.check_login_status():
             self.login()
-        self.__get_current_term()
+        self.get_current_term()
         self.__get_class_time()
         if term is None:
             term = self.currentTerm

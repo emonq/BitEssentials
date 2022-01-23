@@ -174,7 +174,7 @@ def getclasses_handler(update: Update, context: CallbackContext):
         try:
             bit = pickle.loads(obj)
             if len(context.args) == 0:
-                term = bit.currentTerm
+                term = bit.get_current_term()
             else:
                 if len(context.args) > 1 or context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
                                                                                       context.args[0]):
