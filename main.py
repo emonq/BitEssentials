@@ -36,7 +36,7 @@ def get_score_update_of_user(TGID):
         msg = "天啊天啊有新的成绩！！！\n"
         for i in updates:
             info = updates[i]
-            msg += f"\n<b>{info['name']}</b>\n成绩：{info['score']}\n平均分：{info['average']}\n班级排名：{int(info['class_rank'] * 100)}%\n专业排名：{int(info['majority_rank'] * 100)}%\n"
+            msg += f"\n<b>{info['name']} - {info['id']}</b>\n成绩：{info['score']}\n平均分：{info['average']}\n最高分：{info['max']}\n班级排名：{int(info['class_rank'] * 100)}%（第{round(info['class_rank'] * info['class_total'])}位）\n专业排名：{int(info['majority_rank'] * 100)}%（第{round(info['majority_rank'] * info['majority_total'])}位）\n"
         return msg
 
 

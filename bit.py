@@ -241,7 +241,8 @@ class Bit:
         """
         从webvpn爬取新成绩，返回更新的成绩项
         字典项定义：
-        课程号: {
+        课程号 - 学期: {
+            'id': 课程号,
             'term': 学期，如'2019-2020-1',
             'name': 课程名,
             'credit': 学分,
@@ -249,7 +250,9 @@ class Bit:
             'average': 平均分,
             'max': 最高分,
             'class_rank': 班级排名,
+            'class_total': 班级总人数,
             'majority_rank': 专业排名,
+            'majority_total': 专业总人数,
             'all_rank': 所有学生排名
             }
         :return: 包含成绩相关信息的字典
@@ -264,10 +267,12 @@ class Bit:
         updates = {}
         for i in scores:
             columns = i.find_all('td')
-            if columns[2].text in self.scores:  # 如果scores中已经存在该项目则跳过
+            key = f"{columns[2].text} - {columns[1].text}"
+            if key in self.scores:  # 如果scores中已经存在该项目则跳过
                 logging.debug(f"{columns[3].text} 成绩已存在")
                 continue
             data = {
+                'id': columns[2].text,
                 'term': columns[1].text,
                 'name': columns[3].text,
                 'credit': float(columns[6].text),
@@ -280,11 +285,14 @@ class Bit:
                         })
             bs = BeautifulSoup(response.text, 'html.parser')
             analyse = bs.find_all('td')
+            data['class_total'] = int(re.search(r'\d+', analyse[1].text)[0])
+            data['majority_total'] = int(re.search(r'\d+', analyse[2].text)[0])
             data['average'] = analyse[4].text.split('：')[1]
             data['max'] = int(analyse[5].text.split('：')[1])
             data['class_rank'] = int(analyse[8].text.split('：')[1].strip('%')) / 100
             data['majority_rank'] = int(analyse[9].text.split('：')[1].strip('%')) / 100
             data['all_rank'] = int(analyse[10].text.split('：')[1].strip('%')) / 100
-            self.scores[columns[2].text] = data
-            updates[columns[2].text] = data
+            self.scores[key] = data
+            updates[key] = data
+        logging.debug(self.scores)
         return updates

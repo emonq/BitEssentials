@@ -1,5 +1,5 @@
 {
   "bot_token": "",
-  "logging_level": "DEBUG",
+  "logging_level": "INFO",
   "Sqlite_filename": "data.sqlite"
 }
