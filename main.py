@@ -221,7 +221,7 @@ def getexams_handler(update: Update, context: CallbackContext):
                 return
             msg = f"这是为你查询到的学期 {term} 考试安排，共 {len(res)} 项\n"
             for i in res:
-                msg += f"\n<b>{i['name']}</b>\n地点：{i['location']}\n时间：{i['begin'].strftime('%Y-%m-%d %H:%M')} - {i['end'].strftime('%Y-%m-%d %H:%M')}\n"
+                msg += f"\n<b>{i['name']}</b>\n地点：{i['location']}\n时间：{i['begin'].strftime('%Y-%m-%d %H:%M')} - {i['end'].strftime('%Y-%m-%d %H:%M')}\n备注：{i['description'] if 'description' in i.keys() else '无'}\n"
             res_ics = bit.get_exams_ics(term)
             db.save_obj(bit.username, bit.serialize(), chat_id)
             context.bot.send_message(chat_id=chat_id, text=msg)
