@@ -7,6 +7,7 @@ import os
 import cgi
 import re
 import requests
+import logging
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from bs4 import BeautifulSoup
@@ -70,7 +71,10 @@ class Bit:
         """
         result = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/xskcb/cxxsjbxx.do',
                                      allow_redirects=False)
-        return result.status_code == 200
+        if result.status_code != 200:
+            logging.info(f"{self.username} 的统一身份认证登录失效")
+            return False
+        return True
     
     def check_webvpn_login(self):
         """
@@ -80,16 +84,23 @@ class Bit:
         result = self.__session.get(
             'https://webvpn.bit.edu.cn/http/77726476706e69737468656265737421fae04c8f69326144300d8db9d6562d/jsxsd/framework/main.jsp',
             allow_redirects=False)
-        return result.status_code == 200
+        if result.status_code != 200:
+            logging.info(f"{self.username} 的webvpn登录失效")
+            return False
+        return True
     
     def login_to_url(self, login_url):
+        """
+        登录到url，为统一身份认证和webvpn提供登录
+        :param login_url: 登录url
+        :return: 无
+        """
         if not self.check_account_status():
             raise BitInfoError("账号异常")
         result = self.__session.get(login_url)
         login_url = result.url
         page = BeautifulSoup(result.text, "html.parser")
         if page.find(id="execution") is None:
-            print(f"{login_url} 已经登录")
             return
         param_execution = page.find(id="execution")['value']
         password_salt = page.find(id="pwdEncryptSalt")['value']
@@ -254,6 +265,7 @@ class Bit:
         for i in scores:
             columns = i.find_all('td')
             if columns[2].text in self.scores:  # 如果scores中已经存在该项目则跳过
+                logging.debug(f"{columns[3].text} 成绩已存在")
                 continue
             data = {
                 'term': columns[1].text,

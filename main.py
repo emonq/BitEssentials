@@ -14,14 +14,12 @@ from telegram.ext import Updater
 from bit import Bit, BitInfoError
 from data_storage import SqliteStorage
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
 configs = json.load(open("config.json", 'r'))
-db = SqliteStorage('data.sqlite')
-
-
-def start(update: Update, context: CallbackContext):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="这是你的BIT小秘书，我可以帮你查成绩")
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=configs['logging_level'])
+db = SqliteStorage(configs['Sqlite_filename'])
+with open("TOS.txt", 'r', encoding='UTF-8') as f:
+    TOS = f.read()
 
 
 def get_score_update_of_user(TGID):
@@ -49,6 +47,15 @@ def refresh_scores(context: CallbackContext):
         context.bot.send_message(chat_id=ID, text=get_score_update_of_user(ID))
 
 
+def start_handler(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="这是你的BIT小秘书，我可以帮你查成绩，使用 /tos 查看我们的使用条款，继续使用视为你已经同意条款")
+
+
+def tos_handler(update: Update, context: CallbackContext):
+    context.bot.send_message(chat_id=update.effective_chat.id, text=TOS)
+
+
 def refresh_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     msg = get_score_update_of_user(chat_id)
@@ -57,7 +64,6 @@ def refresh_handler(update: Update, context: CallbackContext):
 
 def link_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    # logging.info(f"from {chat_id}:{context.args}")
     obj = db.get_obj(chat_id)
     if obj is not None:
         context.bot.send_message(chat_id=chat_id, text="你已经绑定成功，如需重新绑定请 /unlink 解绑之后重新绑定")
@@ -109,7 +115,8 @@ def run():
     job_queue = updater.job_queue
     job_queue.run_daily(refresh_scores, datetime.time(0, 10, 0, 0))
     dispatcher = updater.dispatcher
-    dispatcher.add_handler(CommandHandler('start', start))
+    dispatcher.add_handler(CommandHandler('start', start_handler))
+    dispatcher.add_handler(CommandHandler('tos', tos_handler))
     dispatcher.add_handler(CommandHandler('link', link_handler))
     dispatcher.add_handler(CommandHandler('refresh', refresh_handler))
     dispatcher.add_handler(CommandHandler('unlink', unlink_handler))
