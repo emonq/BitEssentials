@@ -6,8 +6,12 @@ import pickle
 import os
 import cgi
 import re
+
+import ics
 import requests
+import datetime
 import logging
+import pytz
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from bs4 import BeautifulSoup
@@ -30,6 +34,23 @@ def timestamp():
     return round(time.time() * 1000)
 
 
+def get_datetime(date: datetime.datetime, time: datetime.datetime):
+    return (date + datetime.timedelta(hours=time.hour, minutes=time.minute)).replace(
+        tzinfo=pytz.timezone("Asia/Shanghai"))
+
+
+def build_ics_event(name, location, begin_t: datetime.datetime, end_t: datetime.datetime, description=None):
+    return ics.Event(name=name, location=location, begin=begin_t, end=end_t, description=description)
+
+
+def build_ics(data: list):
+    cal = ics.Calendar()
+    for i in data:
+        cal.events.add(build_ics_event(i['name'], i['location'], i['begin'], i['end'],
+                                       i['description'] if 'description' in i.keys() else None))
+    return cal
+
+
 class BitInfoError(Exception):
     def __init__(self, value):
         self.value = value
@@ -45,6 +66,7 @@ class Bit:
         self.__password = password
         self.scores = {}
         self.currentTerm = ''
+        self.classTime = {}
     
     def set_info(self, username, password):
         """
@@ -298,9 +320,83 @@ class Bit:
         logging.debug(self.scores)
         return updates
     
-    def get_current_term(self):
+    def __get_current_term(self):
+        """
+        获取当前学期并保存
+        :return: 当前学期，如2019-2020-1
+        """
         if not self.check_login_status():
             self.login()
         response = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/jshkcb/dqxnxq.do')
         self.currentTerm = json.loads(response.text)['datas']['dqxnxq']['rows'][0]['DM']
         return self.currentTerm
+    
+    def __get_class_time(self):
+        """
+        获取上课时间并保存，格式{ '第i节': {'begin': datetime,'end': datetime} }
+        :return: 上课时间表
+        """
+        self.classTime = {}
+        response = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/jshkcb/jc.do')
+        res = response.json()['datas']['jc']['rows']
+        for i in res:
+            self.classTime[i['MC']] = {'begin': datetime.datetime.strptime(i['KSSJ'], '%H:%M'),
+                                       'end': datetime.datetime.strptime(i['JSSJ'], '%H:%M')}
+        return self.classTime
+    
+    def __get_week_classes(self, term, week):
+        """
+        获取指定学期指定周的课程信息
+        :param term: 学期，如2019-2020-1
+        :param week: 星期
+        :return: 课程信息list，格式为[{ 'name': 课程名, 'location': 上课地点, 'begin': 开始时间, 'end': 结束时间 }]
+        """
+        # 获取星期中对应日期
+        response = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/wdkbByController/cxzkbrq.do',
+                                       data={'requestParamStr': f'{{"XNXQDM": "{term}", "ZC": "{week}"}}'})
+        res = response.json()['data']
+        date = {}
+        for i in res:
+            date[i['XQ']] = datetime.datetime.strptime(i['RQ'], '%Y-%m-%d')
+        response = self.__session.post('http://jxzxehallapp.bit.edu.cn/jwapp/sys/wdkbby/modules/xskcb/cxxszhxqkb.do',
+                                       {'XNXQDM': term, 'SKZC': str(week)})
+        res = response.json()['datas']['cxxszhxqkb']['rows']
+        classes = []
+        for i in res:
+            classes.append({'name': f"{i['KCM']}-{i['SKJS']}",
+                            'location': f"{i['XXXQMC']}{i['JASMC']}",
+                            'begin': get_datetime(date[i['SKXQ']], self.classTime[i['KSJC_DISPLAY']]['begin']),
+                            'end': get_datetime(date[i['SKXQ']], self.classTime[i['JSJC_DISPLAY']]['end'])
+                            })
+        return classes
+    
+    def get_term_classes(self, term=None):
+        """
+        获取指定学期课程信息
+        :param term: 学期，如2019-2020-1
+        :return: 课程信息list，格式为[{ 'name': 课程名, 'location': 上课地点, 'begin': 开始时间, 'end': 结束时间 }]
+        """
+        if not self.check_login_status():
+            self.login()
+        self.__get_current_term()
+        self.__get_class_time()
+        if term is None:
+            term = self.currentTerm
+        classes = []
+        for i in range(1, 100):
+            week_classes = self.__get_week_classes(term, i)
+            classes += week_classes
+            if len(week_classes) == 0:
+                logging.debug(f"学期 {term} 课表共 {i} 周")
+                break
+        return classes
+    
+    def get_term_classes_ics(self, term=None):
+        """
+        获取指定学期课程ics格式日程表
+        :param term: 学期，如2019-2020-1
+        :return: 课程信息ics
+        """
+        classes = self.get_term_classes(term)
+        res = build_ics(classes)
+        return res

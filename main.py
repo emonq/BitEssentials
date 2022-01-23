@@ -2,6 +2,7 @@ import datetime
 import json
 import logging
 import pickle
+import re
 import traceback
 
 import pytz
@@ -73,6 +74,9 @@ def refresh_handler(update: Update, context: CallbackContext):
         msg = get_score_update_of_user(chat_id)
         for x in range(0, len(msg), 4096):
             context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+    except BitInfoError as e:
+        context.bot.send_message(chat_id=chat_id, text=str(e))
+        logging.error(f"from {chat_id}:{e}")
     except Exception as e:
         errid = uuid.uuid1()
         logging.error(f"{errid}:{repr(e)}")
@@ -136,19 +140,56 @@ def getscores_handler(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
+        context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
         try:
             bit = pickle.loads(obj)
             msg = "这是你的查询结果：\n"
             if len(context.args) == 0:
                 msg += get_scores_message(bit.scores)
             else:
-                if len(context.args) > 1:
-                    msg = "使用格式 /getscores [学期，如 2019-2020-1]"
+                if len(context.args) > 1 or context.args[0] == 'help':
+                    msg = "使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩"
                 else:
                     scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == context.args[0]}
                     msg += get_scores_message(scores)
             for x in range(0, len(msg), 4096):
                 context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+        except BitInfoError as e:
+            context.bot.send_message(chat_id=chat_id, text=str(e))
+            logging.error(f"from {chat_id}:{e}")
+        except Exception as e:
+            errid = uuid.uuid1()
+            logging.error(f"{errid}:{repr(e)}")
+            logging.error(traceback.format_exc())
+            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+
+
+def getclasses_handler(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    obj = db.get_obj(chat_id)
+    if obj is None:
+        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        return
+    else:
+        try:
+            bit = pickle.loads(obj)
+            if len(context.args) == 0:
+                term = bit.currentTerm
+            else:
+                if len(context.args) > 1 or context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
+                                                                                      context.args[0]):
+                    context.bot.send_message(chat_id=chat_id, text="使用方法：/getclasses [ 学期，如 2019-2020-1 ] 默认查询当前学期")
+                    return
+                term = context.args[0]
+            context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
+            res = bit.get_term_classes_ics(term)
+            db.save_obj(bit.username, bit.serialize(), chat_id)
+            context.bot.send_message(chat_id=chat_id, text=f"这是为你查询到的学期 {term} 课表")
+            context.bot.send_document(chat_id=chat_id, document=str(res).encode('UTF-8'),
+                                      filename=f"{bit.username}-{term}.ics")
+        except BitInfoError as e:
+            context.bot.send_message(chat_id=chat_id, text=str(e))
+            logging.error(f"from {chat_id}:{e}")
         except Exception as e:
             errid = uuid.uuid1()
             logging.error(f"{errid}:{repr(e)}")
@@ -169,6 +210,7 @@ def run():
     dispatcher.add_handler(CommandHandler('unlink', unlink_handler))
     dispatcher.add_handler(CommandHandler('info', info_handler))
     dispatcher.add_handler(CommandHandler('getscores', getscores_handler))
+    dispatcher.add_handler(CommandHandler('getclasses', getclasses_handler))
     updater.start_polling()
     updater.idle()
 
