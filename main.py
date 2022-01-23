@@ -22,6 +22,14 @@ with open("TOS.txt", 'r', encoding='UTF-8') as f:
     TOS = f.read()
 
 
+def get_scores_message(scores):
+    msg = ""
+    for i in scores:
+        info = scores[i]
+        msg += f"\n<b>{info['name']} - {info['id']}</b>\n学期：{info['term']}\n成绩：{info['score']}\n平均分：{info['average']}\n最高分：{info['max']}\n班级排名：{int(info['class_rank'] * 100)}%（第{round(info['class_rank'] * info['class_total'])}位）\n专业排名：{int(info['majority_rank'] * 100)}%（第{round(info['majority_rank'] * info['majority_total'])}位）\n"
+    return msg
+
+
 def get_score_update_of_user(TGID):
     obj = db.get_obj(TGID)
     if obj is None:
@@ -34,9 +42,7 @@ def get_score_update_of_user(TGID):
     else:
         db.save_obj(bit.username, bit.serialize(), TGID)
         msg = "天啊天啊有新的成绩！！！\n"
-        for i in updates:
-            info = updates[i]
-            msg += f"\n<b>{info['name']} - {info['id']}</b>\n成绩：{info['score']}\n平均分：{info['average']}\n最高分：{info['max']}\n班级排名：{int(info['class_rank'] * 100)}%（第{round(info['class_rank'] * info['class_total'])}位）\n专业排名：{int(info['majority_rank'] * 100)}%（第{round(info['majority_rank'] * info['majority_total'])}位）\n"
+        msg += get_scores_message(updates)
         return msg
 
 
@@ -109,6 +115,27 @@ def info_handler(update: Update, context: CallbackContext):
     context.bot.send_message(chat_id=chat_id, text=msg)
 
 
+def getscores_handler(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    obj = db.get_obj(chat_id)
+    if obj is None:
+        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        return
+    else:
+        bit = pickle.loads(obj)
+        msg = "这是你的查询结果：\n"
+        if len(context.args) == 0:
+            msg += get_scores_message(bit.scores)
+        else:
+            if len(context.args) > 1:
+                msg = "使用格式 /getscores [学期，如 2019-2020-1]"
+            else:
+                scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == context.args[0]}
+                msg += get_scores_message(scores)
+        for x in range(0, len(msg), 4096):
+            context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+
+
 def run():
     defaults = Defaults(parse_mode=ParseMode.HTML, tzinfo=pytz.timezone('Asia/Shanghai'))
     updater = Updater(token=configs['bot_token'], use_context=True, defaults=defaults)
@@ -121,6 +148,7 @@ def run():
     dispatcher.add_handler(CommandHandler('refresh', refresh_handler))
     dispatcher.add_handler(CommandHandler('unlink', unlink_handler))
     dispatcher.add_handler(CommandHandler('info', info_handler))
+    dispatcher.add_handler(CommandHandler('getscores', getscores_handler))
     updater.start_polling()
     updater.idle()
 
