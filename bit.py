@@ -404,6 +404,11 @@ class Bit:
         return res
     
     def get_exams(self, term=None):
+        """
+        获取指定学期考试安排信息
+        :param term: 学期，如2019-2020-1
+        :return: 考试安排list，格式[{ 'name': 课程名, 'location': 考试地点, 'begin': 开始时间, 'end': 结束时间, 'description': 备注信息 }]
+        """
         if term is None:
             term = self.currentTerm
         response = self.__session.post(
@@ -425,6 +430,11 @@ class Bit:
         return exams
     
     def get_exams_ics(self, term=None):
+        """
+        获取指定学期考试安排ics
+        :param term: 学期，如2019-2020-1
+        :return: 考试安排ics
+        """
         exams = self.get_exams(term)
         res = build_ics(exams)
         return res
