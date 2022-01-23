@@ -197,6 +197,46 @@ def getclasses_handler(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
+def getexams_handler(update: Update, context: CallbackContext):
+    chat_id = update.effective_chat.id
+    obj = db.get_obj(chat_id)
+    if obj is None:
+        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        return
+    else:
+        try:
+            bit = pickle.loads(obj)
+            if len(context.args) == 0:
+                term = bit.get_current_term()
+            else:
+                if len(context.args) > 1 or context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
+                                                                                      context.args[0]):
+                    context.bot.send_message(chat_id=chat_id, text="使用方法：/getexams [ 学期，如 2019-2020-1 ] 默认查询当前学期")
+                    return
+                term = context.args[0]
+            context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
+            res = bit.get_exams(term)
+            if len(res) == 0:
+                context.bot.send_message(chat_id=chat_id, text=f"你在学期 {term} 暂无考试安排")
+                return
+            msg = f"这是为你查询到的学期 {term} 考试安排，共 {len(res)} 项\n"
+            for i in res:
+                msg += f"\n<b>{i['name']}</b>\n地点：{i['location']}\n时间：{i['begin'].strftime('%Y-%m-%d %H:%M')} - {i['end'].strftime('%Y-%m-%d %H:%M')}\n"
+            res_ics = bit.get_exams_ics(term)
+            db.save_obj(bit.username, bit.serialize(), chat_id)
+            context.bot.send_message(chat_id=chat_id, text=msg)
+            context.bot.send_document(chat_id=chat_id, document=str(res_ics).encode('UTF-8'),
+                                      filename=f"{bit.username}-{term}-exams.ics")
+        except BitInfoError as e:
+            context.bot.send_message(chat_id=chat_id, text=str(e))
+            logging.error(f"from {chat_id}:{e}")
+        except Exception as e:
+            errid = uuid.uuid1()
+            logging.error(f"{errid}:{repr(e)}")
+            logging.error(traceback.format_exc())
+            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+
+
 def run():
     defaults = Defaults(parse_mode=ParseMode.HTML, tzinfo=pytz.timezone('Asia/Shanghai'))
     updater = Updater(token=configs['bot_token'], use_context=True, defaults=defaults)
@@ -211,6 +251,7 @@ def run():
     dispatcher.add_handler(CommandHandler('info', info_handler))
     dispatcher.add_handler(CommandHandler('getscores', getscores_handler))
     dispatcher.add_handler(CommandHandler('getclasses', getclasses_handler))
+    dispatcher.add_handler(CommandHandler('getexams', getexams_handler))
     updater.start_polling()
     updater.idle()
 

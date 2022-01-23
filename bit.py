@@ -16,6 +16,8 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from bs4 import BeautifulSoup
 
+TZ = pytz.timezone("Asia/Shanghai")
+
 
 def get_random_string(length):
     return ''.join(random.choices("ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678", k=length))
@@ -36,7 +38,7 @@ def timestamp():
 
 def get_datetime(date: datetime.datetime, time: datetime.datetime):
     return (date + datetime.timedelta(hours=time.hour, minutes=time.minute)).replace(
-        tzinfo=pytz.timezone("Asia/Shanghai"))
+        tzinfo=TZ)
 
 
 def build_ics_event(name, location, begin_t: datetime.datetime, end_t: datetime.datetime, description=None):
@@ -399,4 +401,30 @@ class Bit:
         """
         classes = self.get_term_classes(term)
         res = build_ics(classes)
+        return res
+    
+    def get_exams(self, term=None):
+        if term is None:
+            term = self.currentTerm
+        response = self.__session.post(
+            "http://jxzxehallapp.bit.edu.cn/jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do",
+            {'requestParamStr': f'{{"XNXQDM":"{term}","*order":"-KSRQ,-KSSJMS"}}'})
+        res = response.json()['datas']['cxxsksap']['rows']
+        exams = []
+        for i in res:
+            date = re.findall(r"\d+-\d+-\d+", i['KSSJMS'])[0]
+            exams.append({'name': "%s-%s-%s" % (i['KCM'], i['ZJJSXM'], i['KCH']),
+                          'location': i['JASMC'],
+                          'begin': datetime.datetime.strptime(
+                              date + ' ' + re.findall(r"\d+-\d+-\d+ (\d+:\d+)", i['KSSJMS'])[0],
+                              "%Y-%m-%d %H:%M").replace(tzinfo=TZ),
+                          'end': datetime.datetime.strptime(
+                              date + ' ' + re.findall(r"\d+-\d+-\d+ \d+:\d+-(\d+:\d+)", i['KSSJMS'])[0],
+                              "%Y-%m-%d %H:%M").replace(tzinfo=TZ), 'description': f"座位号：{i['ZWH']}"
+                          })
+        return exams
+    
+    def get_exams_ics(self, term=None):
+        exams = self.get_exams(term)
+        res = build_ics(exams)
         return res
