@@ -2,7 +2,10 @@ import datetime
 import json
 import logging
 import pickle
+import traceback
+
 import pytz
+import uuid
 
 from telegram import ParseMode
 from telegram import Update
@@ -50,7 +53,9 @@ def refresh_scores(context: CallbackContext):
     logging.info("开始更新所有用户成绩")
     ids = db.get_all_users()
     for ID in ids:
-        context.bot.send_message(chat_id=ID, text=get_score_update_of_user(ID))
+        msg = get_score_update_of_user(ID)
+        if msg.startswith("天啊天啊有新的成绩！！！"):
+            context.bot.send_message(chat_id=ID, text=msg)
 
 
 def start_handler(update: Update, context: CallbackContext):
@@ -64,9 +69,15 @@ def tos_handler(update: Update, context: CallbackContext):
 
 def refresh_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
-    msg = get_score_update_of_user(chat_id)
-    for x in range(0, len(msg), 4096):
-        context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+    try:
+        msg = get_score_update_of_user(chat_id)
+        for x in range(0, len(msg), 4096):
+            context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+    except Exception as e:
+        errid = uuid.uuid1()
+        logging.error(f"{errid}:{repr(e)}")
+        logging.error(traceback.format_exc())
+        context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def link_handler(update: Update, context: CallbackContext):
@@ -80,8 +91,8 @@ def link_handler(update: Update, context: CallbackContext):
         return
     username = context.args[0]
     password = context.args[1]
-    bit = Bit(username, password)
     try:
+        bit = Bit(username, password)
         bit.login()
         db.save_obj(username, bit.serialize(), chat_id)
         context.bot.send_message(chat_id=chat_id, text=f"成功绑定学号{username}")
@@ -89,8 +100,10 @@ def link_handler(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=chat_id, text=str(e))
         logging.error(f"from {chat_id}:{e}")
     except Exception as e:
-        logging.error(repr(e))
-        context.bot.send_message(chat_id=chat_id, text="绑定失败，出现了未知错误")
+        errid = uuid.uuid1()
+        logging.error(f"{errid}:{repr(e)}")
+        logging.error(traceback.format_exc())
+        context.bot.send_message(chat_id=chat_id, text=f"绑定失败，出现了未知错误，错误id {errid}")
 
 
 def unlink_handler(update: Update, context: CallbackContext):
@@ -123,18 +136,24 @@ def getscores_handler(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
-        bit = pickle.loads(obj)
-        msg = "这是你的查询结果：\n"
-        if len(context.args) == 0:
-            msg += get_scores_message(bit.scores)
-        else:
-            if len(context.args) > 1:
-                msg = "使用格式 /getscores [学期，如 2019-2020-1]"
+        try:
+            bit = pickle.loads(obj)
+            msg = "这是你的查询结果：\n"
+            if len(context.args) == 0:
+                msg += get_scores_message(bit.scores)
             else:
-                scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == context.args[0]}
-                msg += get_scores_message(scores)
-        for x in range(0, len(msg), 4096):
-            context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+                if len(context.args) > 1:
+                    msg = "使用格式 /getscores [学期，如 2019-2020-1]"
+                else:
+                    scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == context.args[0]}
+                    msg += get_scores_message(scores)
+            for x in range(0, len(msg), 4096):
+                context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
+        except Exception as e:
+            errid = uuid.uuid1()
+            logging.error(f"{errid}:{repr(e)}")
+            logging.error(traceback.format_exc())
+            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def run():
