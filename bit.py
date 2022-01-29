@@ -262,13 +262,14 @@ class Bit:
         for i in bs.findAll(class_='section-title'):
             self.download_lexue_page_files(i.a['href'], os.path.join(path, i.a.text))
     
-    def get_scores_update(self):
+    def get_scores_update(self, refresh_all=False):
         """
         从webvpn爬取新成绩，返回更新的成绩项
         字典项定义：
         课程号 - 学期: {
             'id': 课程号,
             'term': 学期，如'2019-2020-1',
+            'type': 课程性质
             'name': 课程名,
             'credit': 学分,
             'score': 分数,
@@ -280,6 +281,7 @@ class Bit:
             'majority_total': 专业总人数,
             'all_rank': 所有学生排名
             }
+        :param refresh_all: 是否刷新全部，默认为否
         :return: 包含成绩相关信息的字典
         :rtype: dict
         """
@@ -293,13 +295,14 @@ class Bit:
         for i in scores:
             columns = i.find_all('td')
             key = f"{columns[2].text} - {columns[1].text}"
-            if key in self.scores:  # 如果scores中已经存在该项目则跳过
+            if not refresh_all and key in self.scores:  # 如果scores中已经存在该项目则跳过
                 logging.debug(f"{columns[3].text} 成绩已存在")
                 continue
             data = {
                 'id': columns[2].text,
                 'term': columns[1].text,
                 'name': columns[3].text,
+                'type': columns[11].text,
                 'credit': float(columns[6].text),
                 'score': int(re.search(r'zcj=(\d+)', columns[-1].a['onclick']).group(1))}
             response = self.__session.get(

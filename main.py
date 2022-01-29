@@ -30,21 +30,21 @@ def get_scores_message(scores):
     msg = ""
     for i in scores:
         info = scores[i]
-        msg += f"\n<b>{info['name']} - {info['id']}</b>\n学期：{info['term']}\n成绩：{info['score']}\n平均分：{info['average']}\n最高分：{info['max']}\n班级排名：{int(info['class_rank'] * 100)}%（第{round(info['class_rank'] * info['class_total'])}位）\n专业排名：{int(info['majority_rank'] * 100)}%（第{round(info['majority_rank'] * info['majority_total'])}位）\n"
+        msg += f"\n<b>{info['name']} - {info['id']}</b>\n学期：{info['term']}\n成绩：{info['score']}\n平均分：{info['average']}\n最高分：{info['max']}\n班级排名：{int(info['class_rank'] * 100)}%（第{round(info['class_rank'] * info['class_total'])}/{info['class_total']}位）\n专业排名：{int(info['majority_rank'] * 100)}%（第{round(info['majority_rank'] * info['majority_total'])}/{info['majority_total']}位）\n"
     return msg
 
 
-def get_score_update_of_user(TGID):
-    obj = db.get_obj(TGID)
+def get_score_update_of_user(tgid, refresh_all):
+    obj = db.get_obj(tgid)
     if obj is None:
         return "你还没有绑定学号，使用 /link 绑定后才能使用本功能"
     bit = pickle.loads(obj)
-    updates = bit.get_scores_update()
+    updates = bit.get_scores_update(refresh_all)
     logging.info(f"开始为{bit.username}更新成绩")
     if len(updates) == 0:
         return "没有新的成绩更新"
     else:
-        db.save_obj(bit.username, bit.serialize(), TGID)
+        db.save_obj(bit.username, bit.serialize(), tgid)
         msg = "天啊天啊有新的成绩！！！\n"
         msg += get_scores_message(updates)
         return msg
@@ -71,7 +71,10 @@ def tos_handler(update: Update, context: CallbackContext):
 def refresh_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     try:
-        msg = get_score_update_of_user(chat_id)
+        refresh_all = False
+        if len(context.args) > 0:
+            refresh_all = True
+        msg = get_score_update_of_user(chat_id, refresh_all)
         for x in range(0, len(msg), 4096):
             context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
     except BitInfoError as e:
@@ -143,12 +146,12 @@ def getscores_handler(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
         try:
             bit = pickle.loads(obj)
-            msg = "这是你的查询结果：\n"
             if len(context.args) == 0:
-                msg += get_scores_message(bit.scores)
+                scores = bit.scores
             else:
                 if len(context.args) > 1 or context.args[0] == 'help':
-                    msg = "使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩"
+                    context.bot.send_message(chat_id=chat_id, text="使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩")
+                    return
                 else:
                     term = context.args[0]
                     years = re.findall(r'\d\d\d\d', term)
@@ -156,7 +159,8 @@ def getscores_handler(update: Update, context: CallbackContext):
                         context.bot.send_message(chat_id=chat_id, text="学期格式有误")
                         return
                     scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
-                    msg += get_scores_message(scores)
+            msg = f"为你查询到{len(scores)}条结果：\n"
+            msg += get_scores_message(scores)
             for x in range(0, len(msg), 4096):
                 context.bot.send_message(chat_id=chat_id, text=msg[x:x + 4096])
         except BitInfoError as e:
@@ -165,6 +169,7 @@ def getscores_handler(update: Update, context: CallbackContext):
         except Exception as e:
             errid = uuid.uuid1()
             logging.error(f"{errid}:{repr(e)}")
+            logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
             context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
@@ -202,6 +207,7 @@ def getclasses_handler(update: Update, context: CallbackContext):
         except Exception as e:
             errid = uuid.uuid1()
             logging.error(f"{errid}:{repr(e)}")
+            logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
             context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
@@ -246,6 +252,7 @@ def getexams_handler(update: Update, context: CallbackContext):
         except Exception as e:
             errid = uuid.uuid1()
             logging.error(f"{errid}:{repr(e)}")
+            logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
             context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
@@ -276,7 +283,8 @@ def getaverage_handler(update: Update, context: CallbackContext):
                 if int(years[1]) - int(years[0]) != 1:
                     context.bot.send_message(chat_id=chat_id, text="学期格式有误")
                     return
-            scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
+            scores = {i: bit.scores[i] for i in bit.scores if
+                      bit.scores[i]['term'] == term and bit.scores[i]['type'] != '校公选课'}
             total = 0
             total_credit = 0
             for i in scores:
@@ -293,6 +301,7 @@ def getaverage_handler(update: Update, context: CallbackContext):
         except Exception as e:
             errid = uuid.uuid1()
             logging.error(f"{errid}:{repr(e)}")
+            logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
             context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
