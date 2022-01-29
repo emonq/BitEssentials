@@ -34,7 +34,7 @@ def get_scores_message(scores):
     return msg
 
 
-def get_score_update_of_user(tgid, refresh_all):
+def get_score_update_of_user(tgid, refresh_all=False):
     obj = db.get_obj(tgid)
     if obj is None:
         return "你还没有绑定学号，使用 /link 绑定后才能使用本功能"
