@@ -5,4 +5,4 @@ services:
         restart: unless-stopped
         volumes:
             - $PWD/config.json:/BitEssentials/config.json'
-        image: 'bitessentials:latest'
+        image: 'emonq/bitessentials:latest'
