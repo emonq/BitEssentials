@@ -1,5 +1,7 @@
 # BitEssentials
 
+[![docker-builder](https://github.com/emonq/BitEssentials/actions/workflows/docker-builder.yml/badge.svg)](https://github.com/emonq/BitEssentials/actions/workflows/docker-builder.yml)
+
 一个帮助北理工人更方便地获取教学内容的工具（集）
 
 # 功能
