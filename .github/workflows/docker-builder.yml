@@ -29,12 +29,6 @@ jobs:
           echo VERSION_TAG=$(echo ${{ steps.version_step.outputs.version_tag }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
           echo LASTEST_TAG=$(echo ${{ steps.version_step.outputs.latest_tag  }} | tr '[:upper:]' '[:lower:]') >> $GITHUB_ENV
 
-      - name: Prepare Buildx
-        uses: docker/setup-buildx@v1
-        with:
-          driver: container
-          load: true
-
       - name: Build and push Docker images
         id: docker_build
         uses: docker/build-push-action@v2
