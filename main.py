@@ -91,7 +91,8 @@ def link_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is not None:
-        context.bot.send_message(chat_id=chat_id, text="你已经绑定成功，如需重新绑定请 /unlink 解绑之后重新绑定")
+        context.bot.send_message(
+            chat_id=chat_id, text="你已经绑定成功，如需重新绑定请 /unlink 解绑之后重新绑定")
         return
     if len(context.args) != 2:
         context.bot.send_message(chat_id=chat_id, text="使用格式：/link 学号 密码")
@@ -110,14 +111,16 @@ def link_handler(update: Update, context: CallbackContext):
         errid = uuid.uuid1()
         logging.error(f"{errid}:{repr(e)}")
         logging.error(traceback.format_exc())
-        context.bot.send_message(chat_id=chat_id, text=f"绑定失败，出现了未知错误，错误id {errid}")
+        context.bot.send_message(
+            chat_id=chat_id, text=f"绑定失败，出现了未知错误，错误id {errid}")
 
 
 def unlink_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is None:
-        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        context.bot.send_message(
+            chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
         db.delete_user(chat_id)
@@ -140,7 +143,8 @@ def getscores_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is None:
-        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        context.bot.send_message(
+            chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
         context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
@@ -150,15 +154,18 @@ def getscores_handler(update: Update, context: CallbackContext):
                 scores = bit.scores
             else:
                 if len(context.args) > 1 or context.args[0] == 'help':
-                    context.bot.send_message(chat_id=chat_id, text="使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩")
+                    context.bot.send_message(
+                        chat_id=chat_id, text="使用格式 /getscores [学期，如 2019-2020-1] 默认查询所有成绩")
                     return
                 else:
                     term = context.args[0]
                     years = re.findall(r'\d\d\d\d', term)
                     if int(years[1]) - int(years[0]) != 1:
-                        context.bot.send_message(chat_id=chat_id, text="学期格式有误")
+                        context.bot.send_message(
+                            chat_id=chat_id, text="学期格式有误")
                         return
-                    scores = {i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
+                    scores = {
+                        i: bit.scores[i] for i in bit.scores if bit.scores[i]['term'] == term}
             msg = f"为你查询到{len(scores)}条结果：\n"
             msg += get_scores_message(scores)
             for x in range(0, len(msg), 4096):
@@ -171,14 +178,16 @@ def getscores_handler(update: Update, context: CallbackContext):
             logging.error(f"{errid}:{repr(e)}")
             logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
-            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+            context.bot.send_message(
+                chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def getclasses_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is None:
-        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        context.bot.send_message(
+            chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
         try:
@@ -188,7 +197,8 @@ def getclasses_handler(update: Update, context: CallbackContext):
             else:
                 if len(context.args) > 1 or context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
                                                                                       context.args[0]):
-                    context.bot.send_message(chat_id=chat_id, text="使用方法：/getclasses [ 学期，如 2019-2020-1 ] 默认查询当前学期")
+                    context.bot.send_message(
+                        chat_id=chat_id, text="使用方法：/getclasses [ 学期，如 2019-2020-1 ] 默认查询当前学期")
                     return
                 term = context.args[0]
                 years = re.findall(r'\d\d\d\d', term)
@@ -198,7 +208,8 @@ def getclasses_handler(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
             res = bit.get_term_classes_ics(term)
             db.save_obj(bit.username, bit.serialize(), chat_id)
-            context.bot.send_message(chat_id=chat_id, text=f"这是为你查询到的学期 {term} 课表")
+            context.bot.send_message(
+                chat_id=chat_id, text=f"这是为你查询到的学期 {term} 课表")
             context.bot.send_document(chat_id=chat_id, document=str(res).encode('UTF-8'),
                                       filename=f"{bit.username}-{term}.ics")
         except BitInfoError as e:
@@ -209,14 +220,16 @@ def getclasses_handler(update: Update, context: CallbackContext):
             logging.error(f"{errid}:{repr(e)}")
             logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
-            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+            context.bot.send_message(
+                chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def getexams_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is None:
-        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        context.bot.send_message(
+            chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
         try:
@@ -226,7 +239,8 @@ def getexams_handler(update: Update, context: CallbackContext):
             else:
                 if len(context.args) > 1 or context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
                                                                                       context.args[0]):
-                    context.bot.send_message(chat_id=chat_id, text="使用方法：/getexams [ 学期，如 2019-2020-1 ] 默认查询当前学期")
+                    context.bot.send_message(
+                        chat_id=chat_id, text="使用方法：/getexams [ 学期，如 2019-2020-1 ] 默认查询当前学期")
                     return
                 term = context.args[0]
                 years = re.findall(r'\d\d\d\d', term)
@@ -236,7 +250,8 @@ def getexams_handler(update: Update, context: CallbackContext):
             context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
             res = bit.get_exams(term)
             if len(res) == 0:
-                context.bot.send_message(chat_id=chat_id, text=f"你在学期 {term} 暂无考试安排")
+                context.bot.send_message(
+                    chat_id=chat_id, text=f"你在学期 {term} 暂无考试安排")
                 return
             msg = f"这是为你查询到的学期 {term} 考试安排，共 {len(res)} 项\n"
             for i in res:
@@ -254,14 +269,16 @@ def getexams_handler(update: Update, context: CallbackContext):
             logging.error(f"{errid}:{repr(e)}")
             logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
-            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+            context.bot.send_message(
+                chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def getaverage_handler(update: Update, context: CallbackContext):
     chat_id = update.effective_chat.id
     obj = db.get_obj(chat_id)
     if obj is None:
-        context.bot.send_message(chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
+        context.bot.send_message(
+            chat_id=chat_id, text="你还没有绑定学号，使用 /link 绑定后才能使用本功能")
         return
     else:
         context.bot.send_message(chat_id=chat_id, text="请稍候，正在为你查询……")
@@ -269,7 +286,8 @@ def getaverage_handler(update: Update, context: CallbackContext):
             if len(context.args) > 1 or (
                     len(context.args) == 1 and (context.args[0] == 'help' or not re.match(r'\d\d\d\d-\d\d\d\d-\d',
                                                                                           context.args[0]))):
-                context.bot.send_message(chat_id=chat_id, text="使用格式 /getaverage [学期，如 2019-2020-1] 默认查询所有成绩的加权均分")
+                context.bot.send_message(
+                    chat_id=chat_id, text="使用格式 /getaverage [学期，如 2019-2020-1] 默认查询所有成绩的加权均分")
                 return
             bit = pickle.loads(obj)
             msg = get_score_update_of_user(chat_id)
@@ -303,12 +321,15 @@ def getaverage_handler(update: Update, context: CallbackContext):
             logging.error(f"{errid}:{repr(e)}")
             logging.error(f"from {chat_id}: {update.message}")
             logging.error(traceback.format_exc())
-            context.bot.send_message(chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
+            context.bot.send_message(
+                chat_id=chat_id, text=f"出现了未知错误，错误id {errid}")
 
 
 def run():
-    defaults = Defaults(parse_mode=ParseMode.HTML, tzinfo=pytz.timezone('Asia/Shanghai'))
-    updater = Updater(token=configs['bot_token'], use_context=True, defaults=defaults)
+    defaults = Defaults(parse_mode=ParseMode.HTML,
+                        tzinfo=pytz.timezone('Asia/Shanghai'))
+    updater = Updater(token=configs['bot_token'], use_context=True, defaults=defaults, request_kwargs={
+                      'proxy_url': configs['proxy_url']})
     job_queue = updater.job_queue
     job_queue.run_daily(refresh_scores, datetime.time(0, 10, 0, 0))
     dispatcher = updater.dispatcher

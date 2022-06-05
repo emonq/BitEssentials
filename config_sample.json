@@ -1,5 +1,6 @@
 {
   "bot_token": "",
   "logging_level": "INFO",
-  "Sqlite_filename": "data.sqlite"
+  "Sqlite_filename": "data.sqlite",
+  "proxy_url": ""
 }
