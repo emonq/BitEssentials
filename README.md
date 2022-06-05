@@ -4,7 +4,7 @@
 
 一个帮助北理工人更方便地获取教学内容的工具（集）
 
-# 功能
+## 功能
 
 - [x] 保存用户会话到数据库
 - [x] 乐学课程文件下载
@@ -17,13 +17,13 @@
 - [ ] 网页版设置
 - [ ] 更多推送方法
 
-# Telegram机器人部署方法
+## 手动部署
 
 - 安装依赖`pip install -r requirements.txt`
 - 复制配置文件模板 `cp config_sample.json config.json` 后填写`config.json`
 - 后台运行`nohup python main.py > bitessentials.log &`
 
-## Docker部署
+## [Docker](https://hub.docker.com/r/emonq/bitessentials)部署
 
 - 下载 [docker-compose.yml](https://raw.githubusercontent.com/emonq/BitEssentials/main/docker-compose.yml) 
 
