@@ -13,6 +13,9 @@
 - [x] 自动查询成绩并推送
 - [x] 均分计算
 - [ ] 日历托管和自动更新
+- [ ] 考试与课程推送
+- [ ] 网页版设置
+- [ ] 更多推送方法
 
 # Telegram机器人部署方法
 
@@ -23,15 +26,15 @@
 ## Docker部署
 
 - 下载 [docker-compose.yml](https://raw.githubusercontent.com/emonq/BitEssentials/main/docker-compose.yml) 
- ```
- wget https://raw.githubusercontent.com/emonq/BitEssentials/main/docker-compose.yml
- ```
- 
+
+  ```
+  wget https://raw.githubusercontent.com/emonq/BitEssentials/main/docker-compose.yml
+  ```
 - 下载配置文件模板
 
-   ```
+  ```
    wget https://raw.githubusercontent.com/emonq/BitEssentials/main/config_sample.json -O config.json
-   ```
+  ```
 
 - 修改配置文件 `config.json` 的内容
 
