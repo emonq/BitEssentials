@@ -4,5 +4,5 @@ services:
         container_name: bitessentials
         restart: unless-stopped
         volumes:
-            - $PWD/config.json:/BitEssentials/config.json'
+            - $PWD/config.json:/BitEssentials/config.json
         image: 'emonq/bitessentials:latest'
