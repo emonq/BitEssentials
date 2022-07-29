@@ -331,7 +331,7 @@ def run():
     updater = Updater(token=configs['bot_token'], use_context=True, defaults=defaults, request_kwargs={
                       'proxy_url': configs['proxy_url']})
     job_queue = updater.job_queue
-    job_queue.run_daily(refresh_scores, datetime.time(0, 10, 0, 0))
+    job_queue.run_daily(refresh_scores, datetime.time(0, 35, 0, 0))
     dispatcher = updater.dispatcher
     dispatcher.add_handler(CommandHandler('start', start_handler))
     dispatcher.add_handler(CommandHandler('tos', tos_handler))
